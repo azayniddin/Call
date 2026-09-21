@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AssistantConfig, DEFAULT_CONFIG } from '@/lib/openai';
+import { AssistantConfig, DEFAULT_CONFIG } from '@/lib/types';
 
 // Server-side in-memory config store
 let currentConfig: AssistantConfig = { ...DEFAULT_CONFIG };

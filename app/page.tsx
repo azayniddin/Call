@@ -17,7 +17,7 @@ import {
   FileAudio,
 } from 'lucide-react';
 import CallSimulator from '@/components/CallSimulator';
-import { AssistantConfig, DEFAULT_CONFIG } from '@/lib/openai';
+import { AssistantConfig, DEFAULT_CONFIG } from '@/lib/types';
 
 const QUICK_PRESETS = [
   { label: '💼 Ishdaman', text: 'men ishdaman ishdan chiqib qongiroq qilaman' },
