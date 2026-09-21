@@ -1,0 +1,31 @@
+<resources>
+    <string name="app_name">Call Guardian</string>
+    <string name="accessibility_service_description">Qo\'ng\'iroq vaqtida ovoz pasaytirish tugmasi bosilganda raqamni avtomatik rad etish va bloklash xizmati.</string>
+    
+    <!-- UI Strings -->
+    <string name="title_app_status">Ilova holati</string>
+    <string name="status_accessibility_title">Ovoz tugmasi nazorati</string>
+    <string name="status_accessibility_desc">Ovoz pasaytirish tugmasini tutib olish uchun maxsus ruxsat</string>
+    <string name="status_screening_title">Qo\'ng\'iroq filtri</string>
+    <string name="status_screening_desc">Qayta qo\'ng\'iroqlarni bildirmasdan uzib tashlash xizmati</string>
+    <string name="status_phone_perm_title">Qo\'ng\'iroq ruxsatlari</string>
+    <string name="status_phone_perm_desc">Kiruvchi raqamni aniqlash va boshqarish</string>
+    
+    <string name="btn_enable">Yoqish</string>
+    <string name="btn_enabled">Yoqilgan</string>
+    <string name="btn_grant">Ruxsat berish</string>
+    <string name="btn_granted">Berilgan</string>
+
+    <string name="title_blocked_list">Avtomatik bloklangan raqamlar</string>
+    <string name="empty_blocked_list">Hozircha bloklangan raqamlar yo\'q.\nKiruvchi qo\'ng\'iroq vaqtida [Ovoz pasaytirish] tugmasini bir marta bossangiz, raqam avtomatik shu yerga tushadi.</string>
+    <string name="blocked_at">Bloklangan vaqti: %s</string>
+    <string name="btn_unblock">Blokdan chiqarish</string>
+    <string name="btn_add_manual">Qo\'lda raqam qo\'shish</string>
+    <string name="dialog_add_title">Raqam qo\'shish</string>
+    <string name="dialog_add_hint">+998901234567</string>
+    <string name="dialog_btn_add">Qo\'shish</string>
+    <string name="dialog_btn_cancel">Bekor qilish</string>
+    <string name="unblocked_toast">%s raqami blokdan chiqarildi</string>
+    <string name="blocked_toast">%s raqami muvaffaqiyatli bloklandi</string>
+    <string name="auto_unblock_hint">Eslatma: Siz o\'zingiz bloklangan raqamga qaytarib telefon qilsangiz, tizim uni avtomatik blokdan yechadi!</string>
+</resources>

@@ -1,0 +1,16 @@
+{
+  "name": "Zayniddin AI Call Assistant",
+  "short_name": "AI Assistant",
+  "description": "Zayniddin uchun sun'iy intellekt qo'ng'iroq yordamchisi",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
