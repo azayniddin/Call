@@ -11,6 +11,10 @@
     <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
     <uses-permission android:name="android.permission.PROCESS_OUTGOING_CALLS" tools:ignore="Deprecated" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
@@ -29,18 +33,15 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.DIAL" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.DIAL" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:scheme="tel" />
-            </intent-filter>
         </activity>
 
-        <!-- AI Auto-Answer InCallService -->
+        <!-- Permanent Foreground Service for Auto-Answering Calls -->
+        <service
+            android:name=".service.CallGuardianForegroundService"
+            android:foregroundServiceType="mediaPlayback"
+            android:exported="false" />
+
+        <!-- AI Auto-Answer InCallService (Optional / System Telecom) -->
         <service
             android:name=".service.AiCallAnswerService"
             android:permission="android.permission.BIND_INCALL_SERVICE"
@@ -53,7 +54,7 @@
                 android:value="false" />
         </service>
 
-        <!-- 1. Volume Key Accessibility Service -->
+        <!-- 1. Volume Key & Screen Answer Accessibility Service -->
         <service
             android:name=".service.VolumeKeyAccessibilityService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
@@ -85,7 +86,17 @@
             </intent-filter>
         </receiver>
 
-        <!-- 4. Outgoing Call Broadcast Receiver -->
+        <!-- 4. Boot Receiver for Starting Service on Phone Restart -->
+        <receiver
+            android:name=".receiver.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
+        <!-- 5. Outgoing Call Broadcast Receiver -->
         <receiver
             android:name=".receiver.OutgoingCallReceiver"
             android:exported="true">

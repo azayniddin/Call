@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.os.Build
 import android.os.Handler
@@ -11,6 +12,7 @@ import android.os.Looper
 import android.telecom.TelecomManager
 import android.telephony.TelephonyManager
 import android.util.Log
+import android.view.KeyEvent
 import com.example.callguardian.R
 import com.example.callguardian.data.BlockRepository
 import com.example.callguardian.service.CallManagerHelper
@@ -19,6 +21,7 @@ class PhoneStateReceiver : BroadcastReceiver() {
 
     companion object {
         private var activePlayer: MediaPlayer? = null
+        private val handler = Handler(Looper.getMainLooper())
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -38,63 +41,125 @@ class PhoneStateReceiver : BroadcastReceiver() {
                 if (!incomingNumber.isNullOrBlank()) {
                     repo.saveLastIncomingNumber(incomingNumber)
 
-                    // Agar bloklangan bo'lsa darhol uzish
                     if (repo.isBlocked(incomingNumber)) {
-                        Log.d("PhoneStateReceiver", "Blocked number: $incomingNumber. Ending call.")
                         CallManagerHelper.endCurrentCall(context)
                         return
                     }
                 }
 
-                // Agar AI Yordamchi yoqilgan bo'lsa -> 1.5 soniyadan keyin avtomatik ko'tarish!
+                // 1. Foreground xizmatni ishga tushirish (agar uxlayotgan bo'lsa)
                 if (isAiEnabled) {
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        try {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                val telecomManager = context.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
-                                telecomManager?.acceptRingingCall()
-                                Log.d("PhoneStateReceiver", "Call auto-answered via TelecomManager!")
-                            }
-                        } catch (e: Exception) {
-                            Log.e("PhoneStateReceiver", "Failed to accept call: ${e.message}")
-                        }
-                    }, 1500)
+                    try {
+                        val serviceIntent = Intent(context, com.example.callguardian.service.CallGuardianForegroundService::class.java)
+                        androidx.core.content.ContextCompat.startForegroundService(context, serviceIntent)
+                    } catch (e: Exception) {
+                        Log.e("PhoneStateReceiver", "Error starting foreground service: ${e.message}")
+                    }
+
+                    // Darhol javob berishga urinish
+                    answerIncomingCall(context)
                 }
             }
+
             TelephonyManager.EXTRA_STATE_OFFHOOK -> {
                 repo.setCallState("OFFHOOK")
-                // Agar AI Yordamchi yoqilgan bo'lsa va qo'ng'iroq endi ulanganda -> OpenAI audiosini ijro etish
+
+                // 2. QO'NG'IROQ ULANGAN: SUHBATDOSHGA ESHITTIRISH VA O'CHIRISH
                 if (isAiEnabled) {
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        try {
-                            activePlayer?.release()
-                            activePlayer = MediaPlayer.create(context, R.raw.ai_speech).apply {
-                                setAudioAttributes(
-                                    AudioAttributes.Builder()
-                                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                                        .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
-                                        .build()
-                                )
-                                setOnCompletionListener {
-                                    Log.d("PhoneStateReceiver", "Speech finished, ending call.")
-                                    Handler(Looper.getMainLooper()).postDelayed({
-                                        CallManagerHelper.endCurrentCall(context)
-                                    }, 500)
-                                }
-                                start()
-                                Log.d("PhoneStateReceiver", "Audio playback started.")
-                            }
-                        } catch (e: Exception) {
-                            Log.e("PhoneStateReceiver", "Error playing audio: ${e.message}")
-                        }
+                    handler.postDelayed({
+                        playSpeechToCallerAndHangup(context)
                     }, 800)
                 }
             }
+
             TelephonyManager.EXTRA_STATE_IDLE -> {
                 repo.setCallState("IDLE")
-                activePlayer?.release()
-                activePlayer = null
+                cleanup(context)
             }
         }
+    }
+
+    /**
+     * Qo'ng'iroqni avtomatik ko'tarish:
+     * 1) TelecomManager.acceptRingingCall()
+     * 2) Hardware HeadsetHook simulyatsiyasi (Honor / Android 14 uchun 100% kafolat)
+     */
+    private fun answerIncomingCall(context: Context) {
+        try {
+            // Usul A: TelecomManager orqali
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val telecomManager = context.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
+                telecomManager?.acceptRingingCall()
+                Log.d("PhoneStateReceiver", "Answered via TelecomManager")
+            }
+        } catch (e: Exception) {
+            Log.w("PhoneStateReceiver", "TelecomManager accept failed: ${e.message}")
+        }
+
+        try {
+            // Usul B: Naushnik tugmasi (HEADSETHOOK) hodisasi orqali avtomatik ko'tarish
+            val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+            val downEvent = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_HEADSETHOOK)
+            val upEvent = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_HEADSETHOOK)
+            audioManager?.dispatchMediaKeyEvent(downEvent)
+            audioManager?.dispatchMediaKeyEvent(upEvent)
+            Log.d("PhoneStateReceiver", "Answered via HEADSETHOOK media key")
+        } catch (e: Exception) {
+            Log.e("PhoneStateReceiver", "HeadsetHook dispatch failed: ${e.message}")
+        }
+    }
+
+    /**
+     * Suhbatdoshga ovoz borishi uchun:
+     * Karnay (Speakerphone) yoqiladi, audio baland ijro etiladi va mikrofon orqali
+     * narigi suhbatdoshga to'liq yetib boradi! Audio tugashi bilan telefon uziladi.
+     */
+    private fun playSpeechToCallerAndHangup(context: Context) {
+        try {
+            val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+            audioManager?.mode = AudioManager.MODE_IN_CALL
+            audioManager?.isSpeakerphoneOn = true // Karnayni yoqish (suhbatdoshga borishi uchun)
+
+            activePlayer?.release()
+            activePlayer = MediaPlayer.create(context, R.raw.ai_speech).apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                        .build()
+                )
+
+                setOnCompletionListener {
+                    Log.d("PhoneStateReceiver", "Audio finished. Automatically ending call.")
+                    handler.postDelayed({
+                        audioManager?.isSpeakerphoneOn = false
+                        CallManagerHelper.endCurrentCall(context)
+                    }, 500)
+                }
+
+                start()
+                Log.d("PhoneStateReceiver", "Playing AI speech to caller via in-call speaker...")
+            }
+
+            // Fallback timeout: agar audio tugamasa, 9 soniyada xavfsiz o'chirish
+            handler.postDelayed({
+                try {
+                    audioManager?.isSpeakerphoneOn = false
+                    CallManagerHelper.endCurrentCall(context)
+                } catch (ignored: Exception) {}
+            }, 9000)
+
+        } catch (e: Exception) {
+            Log.e("PhoneStateReceiver", "Error playing speech: ${e.message}", e)
+        }
+    }
+
+    private fun cleanup(context: Context) {
+        try {
+            val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+            audioManager?.isSpeakerphoneOn = false
+            activePlayer?.release()
+            activePlayer = null
+        } catch (ignored: Exception) {}
     }
 }

@@ -23,7 +23,7 @@
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:layout_marginBottom="20dp">
+                android:layout_marginBottom="16dp">
 
                 <ImageView
                     android:layout_width="44dp"
@@ -48,67 +48,58 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Dual-SIM Avtomatik Telefon Yordamchisi"
+                        android:text="Avtomatik Qo'ng'iroq Kotibi"
                         android:textColor="@color/text_secondary"
                         android:textSize="13sp" />
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- ENG MUHIM: STANDART TELEFON ILOVASI STATUSI -->
+            <!-- 1. AI AVTO-JAVOB TIZIMI STATUSI -->
             <LinearLayout
-                android:id="@+id/layoutDefaultDialerNotice"
+                android:id="@+id/layoutActiveServiceCard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_card"
-                android:backgroundTint="#1E1B4B"
-                android:orientation="vertical"
+                android:backgroundTint="#064E3B"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
                 android:padding="16dp"
                 android:layout_marginBottom="16dp">
+
+                <TextView
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:gravity="center"
+                    android:text="⚡"
+                    android:textSize="22sp" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                    android:layout_marginStart="10dp"
+                    android:orientation="vertical">
 
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="⚡ 1-QADAM: Qo'ng'iroqni boshqarish"
-                            android:textColor="#FBBF24"
-                            android:textSize="14sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:id="@+id/tvDefaultDialerDesc"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
-                            android:text="Telefon avtomatik ko'tarishi uchun Standart ilova qilib tanlang"
-                            android:textColor="#E2E8F0"
-                            android:textSize="12sp" />
-                    </LinearLayout>
-
-                    <Button
-                        android:id="@+id/btnSetDefaultDialer"
-                        style="@style/Widget.Material3.Button"
+                    <TextView
+                        android:id="@+id/tvServiceStatusTitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Tanlash"
-                        android:backgroundTint="#6366F1"
-                        android:textColor="#FFFFFF"
+                        android:text="AI Avto-javob: 24/7 Faol"
+                        android:textColor="#34D399"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvServiceStatusSubtitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Qo'ng'iroqlarga o'zi javob beradi va xabaringizni eshittiradi"
+                        android:textColor="#D1FAE5"
                         android:textSize="12sp" />
                 </LinearLayout>
-
             </LinearLayout>
 
-            <!-- ASOSIY AI YORDAMCHI ON/OFF KARTASI -->
+            <!-- 2. ASOSIY AI YORDAMCHI ON/OFF -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -143,8 +134,8 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
-                            android:text="Qo'ng'iroqlarni o'zi ko'tarib javob beradi"
-                            android:textColor="#94A3B8"
+                            android:text="🟢 Faol: Qo'ng'iroqlarni o'zi ko'tarib javob beradi"
+                            android:textColor="#34D399"
                             android:textSize="13sp" />
                     </LinearLayout>
 
@@ -158,7 +149,7 @@
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
-                    android:layout_marginVertical="16dp"
+                    android:layout_marginVertical="14dp"
                     android:background="#334155" />
 
                 <!-- SIM Karta Tanlash -->
@@ -169,7 +160,7 @@
                     android:textColor="#E2E8F0"
                     android:textSize="13sp"
                     android:textStyle="bold"
-                    android:layout_marginBottom="8dp" />
+                    android:layout_marginBottom="6dp" />
 
                 <RadioGroup
                     android:id="@+id/rgSimSelection"
@@ -205,10 +196,9 @@
                         android:textColor="#FFFFFF"
                         android:textSize="13sp" />
                 </RadioGroup>
-
             </LinearLayout>
 
-            <!-- AI KOTIB MATNI VA SINOV -->
+            <!-- 3. MATNNI YOZISH VA TAHRIRLASH (EDIT TEXT) -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -220,87 +210,55 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="🎙️ AI Kotib Nutqi"
+                    android:text="✍️ Xohlagan matningizni yozing:"
                     android:textColor="@color/text_primary"
                     android:textSize="15sp"
                     android:textStyle="bold" />
 
                 <TextView
-                    android:id="@+id/tvAssistantSpeechText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="Qo'ng'iroq qilgan odamga aynan shu xabar o'qib beriladi:"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+
+                <EditText
+                    android:id="@+id/etCustomMessage"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:background="@drawable/bg_badge_active"
-                    android:padding="12dp"
-                    android:text="&quot;Assalomu alaykum! Men Zayniddinning sun'iy intellekt yordamchisiman. Zayniddin hozir ishda, ishdan chiqib o'zlari sizga telefon qiladi. Xayr, salomat bo'ling!&quot;"
-                    android:textColor="@color/status_green"
-                    android:textSize="13sp"
-                    android:lineSpacingExtra="3dp" />
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/bg_card"
+                    android:backgroundTint="#1E293B"
+                    android:gravity="top|start"
+                    android:hint="Xabaringizni yozing..."
+                    android:textColorHint="#94A3B8"
+                    android:inputType="textMultiLine|textCapSentences"
+                    android:minLines="3"
+                    android:padding="14dp"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:cursorVisible="true"
+                    android:scrollbars="vertical" />
 
-                <Button
-                    android:id="@+id/btnTestSpeech"
-                    style="@style/Widget.Material3.Button.TonalButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:text="🔊 Ovozni telefonda eshitib ko'rish"
-                    android:textSize="13sp" />
-            </LinearLayout>
-
-            <!-- Tizim ruxsatlari -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
-                android:text="Zarur Tizim Ruxsatlari"
-                android:textColor="@color/text_primary"
-                android:textSize="16sp"
-                android:textStyle="bold" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@drawable/bg_card"
-                android:orientation="vertical"
-                android:padding="16dp"
-                android:layout_marginBottom="20dp">
-
-                <!-- Call Screening Item -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/status_screening_title"
-                            android:textColor="@color/text_primary"
-                            android:textSize="15sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Avtomatik qo'ng'iroqni aniqlash"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
-                    </LinearLayout>
+                    android:orientation="horizontal"
+                    android:layout_marginTop="10dp"
+                    android:gravity="end">
 
                     <Button
-                        android:id="@+id/btnCallScreening"
-                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:id="@+id/btnSaveMessage"
+                        style="@style/Widget.Material3.Button"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/btn_enable"
-                        android:textSize="12sp" />
+                        android:text="💾 Matnni Saqlash"
+                        android:backgroundTint="@color/primary"
+                        android:textColor="#FFFFFF"
+                        android:textSize="13sp" />
                 </LinearLayout>
 
                 <View
@@ -309,34 +267,46 @@
                     android:layout_marginVertical="12dp"
                     android:background="@color/divider" />
 
-                <!-- Phone Permissions Item -->
+                <Button
+                    android:id="@+id/btnTestSpeech"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="🔊 Ovozni telefonda eshitib ko'rish"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <!-- 4. Zarur Tizim Ruxsatlari -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_card"
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:layout_marginBottom="20dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Zarur Tizim Ruxsatlari"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
-                    <LinearLayout
+                    <TextView
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/status_phone_perm_title"
-                            android:textColor="@color/text_primary"
-                            android:textSize="15sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="SIM kartalarni boshqarish ruxsati"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
-                    </LinearLayout>
+                        android:text="Qo'ng'iroq va SIM ruxsatlari"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="13sp" />
 
                     <Button
                         android:id="@+id/btnPhonePermissions"
@@ -346,12 +316,11 @@
                         android:text="@string/btn_grant"
                         android:textSize="12sp" />
                 </LinearLayout>
-
             </LinearLayout>
 
             <View
                 android:layout_width="match_parent"
-                android:layout_height="30dp" />
+                android:layout_height="40dp" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

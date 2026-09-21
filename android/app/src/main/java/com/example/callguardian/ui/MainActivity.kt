@@ -1,26 +1,38 @@
 package com.example.callguardian.ui
 
 import android.Manifest
-import android.app.role.RoleManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.MediaPlayer
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.telecom.TelecomManager
+import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.example.callguardian.R
 import com.example.callguardian.databinding.ActivityMainBinding
+import com.example.callguardian.service.CallGuardianForegroundService
+import java.io.File
+import java.util.Locale
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
+    private val TAG = "MainActivity"
     private lateinit var binding: ActivityMainBinding
     private var testPlayer: MediaPlayer? = null
+    private var tts: TextToSpeech? = null
+    private var isTtsReady = false
+
     private val PREFS_NAME = "call_guardian_prefs"
+    private val KEY_CUSTOM_MESSAGE = "custom_message"
+    private val DEFAULT_MESSAGE =
+        "Assalomu alaykum! Men Zayniddinning sun'iy intellekt yordamchisiman. Zayniddin hozir ishda, ishdan chiqib o'zlari sizga telefon qiladi. Xayr, salomat bo'ling!"
 
     private val requiredPermissions = buildList {
         add(Manifest.permission.READ_PHONE_STATE)
@@ -31,16 +43,15 @@ class MainActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             add(Manifest.permission.READ_PHONE_NUMBERS)
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            add(Manifest.permission.POST_NOTIFICATIONS)
+        }
     }
 
     private val requestPermissionsLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
             updateStatusIndicators()
-        }
-
-    private val requestRoleLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-            updateStatusIndicators()
+            checkAndStartService()
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,18 +59,62 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        tts = TextToSpeech(this, this)
+
         loadSettings()
         setupListeners()
         updateStatusIndicators()
+
+        // Missing permission bo'lsa darhol ruxsat so'rash
+        val hasMissing = requiredPermissions.any {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+        if (hasMissing) {
+            requestPermissionsLauncher.launch(requiredPermissions.toTypedArray())
+        } else {
+            checkAndStartService()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        updateStatusIndicators()
+        checkAndStartService()
+    }
+
+    override fun onInit(status: Int) {
+        if (status == TextToSpeech.SUCCESS) {
+            val result = tts?.setLanguage(Locale("uz"))
+            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                tts?.setLanguage(Locale("ru"))
+            }
+            isTtsReady = true
+        }
+    }
+
+    private fun checkAndStartService() {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val isEnabled = prefs.getBoolean("ai_assistant_enabled", true)
+        if (isEnabled) {
+            try {
+                val serviceIntent = Intent(this, CallGuardianForegroundService::class.java)
+                ContextCompat.startForegroundService(this, serviceIntent)
+                Log.d(TAG, "CallGuardianForegroundService started/ensured.")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to start foreground service: ${e.message}")
+            }
+        }
     }
 
     private fun loadSettings() {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val isEnabled = prefs.getBoolean("ai_assistant_enabled", true)
         val selectedSim = prefs.getString("selected_sim", "both") ?: "both"
+        val savedMessage = prefs.getString(KEY_CUSTOM_MESSAGE, DEFAULT_MESSAGE)
 
         binding.switchAiAssistant.isChecked = isEnabled
         updateSwitchSubtitle(isEnabled)
+        binding.etCustomMessage.setText(savedMessage)
 
         when (selectedSim) {
             "sim1" -> binding.rbSim1.isChecked = true
@@ -74,8 +129,16 @@ class MainActivity : AppCompatActivity() {
             val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             prefs.edit().putBoolean("ai_assistant_enabled", isChecked).apply()
             updateSwitchSubtitle(isChecked)
-            val msg = if (isChecked) "AI Yordamchi YOQILDI! Qo'ng'iroqlarga o'zi javob beradi." else "AI Yordamchi O'CHIRILDI."
-            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+
+            if (isChecked) {
+                checkAndStartService()
+                Toast.makeText(this, "🟢 AI Yordamchi YOQILDI! Qo'ng'iroqlarga o'zi javob beradi.", Toast.LENGTH_SHORT).show()
+            } else {
+                try {
+                    stopService(Intent(this, CallGuardianForegroundService::class.java))
+                } catch (ignored: Exception) {}
+                Toast.makeText(this, "AI Yordamchi O'CHIRILDI.", Toast.LENGTH_SHORT).show()
+            }
         }
 
         // SIM Selection
@@ -91,12 +154,39 @@ class MainActivity : AppCompatActivity() {
                 .apply()
         }
 
-        // Default Dialer Button
-        binding.btnSetDefaultDialer.setOnClickListener {
-            requestDefaultDialer()
+        // Save Custom Message Button
+        binding.btnSaveMessage.setOnClickListener {
+            val text = binding.etCustomMessage.text.toString().trim()
+            if (text.isNotBlank()) {
+                getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    .edit()
+                    .putString(KEY_CUSTOM_MESSAGE, text)
+                    .apply()
+
+                val customFile = File(filesDir, "custom_ai_speech.wav")
+                if (text == DEFAULT_MESSAGE) {
+                    // Default bo'lsa maxsus faylni o'chiramiz, OpenAI audiosi yangraydi
+                    if (customFile.exists()) customFile.delete()
+                    Toast.makeText(this, "Asl OpenAI audiosi tanlandi! ✅", Toast.LENGTH_SHORT).show()
+                } else if (isTtsReady && tts != null) {
+                    // Foydalanuvchi yangi matn kiritgan bo'lsa TTS orqali sintez qilamiz
+                    try {
+                        val bundle = Bundle()
+                        val utteranceId = "save_speech"
+                        tts?.synthesizeToFile(text, bundle, customFile, utteranceId)
+                        Toast.makeText(this, "Matn saqlandi va ovoz tayyorlandi! ✅", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Toast.makeText(this, "Matn saqlandi! ✅", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    Toast.makeText(this, "Matn saqlandi! ✅", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                Toast.makeText(this, "Iltimos, matn kiriting", Toast.LENGTH_SHORT).show()
+            }
         }
 
-        // Test Speech using real OpenAI MP3
+        // Test Speech Button
         binding.btnTestSpeech.setOnClickListener {
             if (testPlayer?.isPlaying == true) {
                 testPlayer?.stop()
@@ -106,21 +196,27 @@ class MainActivity : AppCompatActivity() {
             } else {
                 try {
                     testPlayer?.release()
-                    testPlayer = MediaPlayer.create(this, R.raw.ai_speech)
-                    testPlayer?.setOnCompletionListener {
-                        binding.btnTestSpeech.text = "🔊 Ovozni telefonda eshitib ko'rish"
+                    val customFile = File(filesDir, "custom_ai_speech.wav")
+                    val player = if (customFile.exists() && customFile.length() > 0) {
+                        MediaPlayer().apply {
+                            setDataSource(applicationContext, Uri.fromFile(customFile))
+                            prepare()
+                        }
+                    } else {
+                        MediaPlayer.create(this, R.raw.ai_speech)
                     }
-                    testPlayer?.start()
+
+                    testPlayer = player?.apply {
+                        setOnCompletionListener {
+                            binding.btnTestSpeech.text = "🔊 Ovozni telefonda eshitib ko'rish"
+                        }
+                        start()
+                    }
                     binding.btnTestSpeech.text = "⏹️ Ovoz yangramoqda (To'xtatish)"
                 } catch (e: Exception) {
-                    Toast.makeText(this, "Audio xatosi: ${e.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Audio xatosi: " + e.message, Toast.LENGTH_SHORT).show()
                 }
             }
-        }
-
-        // Call Screening Button
-        binding.btnCallScreening.setOnClickListener {
-            requestCallScreeningRole()
         }
 
         // Phone Permissions Button
@@ -133,57 +229,21 @@ class MainActivity : AppCompatActivity() {
         if (isEnabled) {
             binding.tvAiStatusSubtitle.text = "🟢 Faol: Qo'ng'iroqlarni o'zi ko'tarib javob beradi"
             binding.tvAiStatusSubtitle.setTextColor(ContextCompat.getColor(this, R.color.status_green))
+            binding.tvServiceStatusTitle.text = "AI Avto-javob: 24/7 Faol"
+            binding.tvServiceStatusSubtitle.text = "Qo'ng'iroqlarga o'zi javob beradi va xabaringizni eshittiradi"
+            binding.layoutActiveServiceCard.backgroundTintList =
+                android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#064E3B"))
         } else {
             binding.tvAiStatusSubtitle.text = "⚪ O'chirilgan"
             binding.tvAiStatusSubtitle.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
+            binding.tvServiceStatusTitle.text = "AI Avto-javob: To'xtatilgan"
+            binding.tvServiceStatusSubtitle.text = "Qo'ng'iroqlarga avtomatik javob berish o'chirilgan"
+            binding.layoutActiveServiceCard.backgroundTintList =
+                android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#334155"))
         }
-    }
-
-    private fun requestDefaultDialer() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val roleManager = getSystemService(Context.ROLE_SERVICE) as? RoleManager
-            if (roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_DIALER)) {
-                val intent = roleManager.createRequestRoleIntent(RoleManager.ROLE_DIALER)
-                startActivity(intent)
-                return
-            }
-        }
-        val intent = Intent(TelecomManager.ACTION_CHANGE_DEFAULT_DIALER).apply {
-            putExtra(TelecomManager.EXTRA_CHANGE_DEFAULT_DIALER_PACKAGE_NAME, packageName)
-        }
-        startActivity(intent)
-    }
-
-    private fun isDefaultDialer(): Boolean {
-        val telecomManager = getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
-        return telecomManager?.defaultDialerPackage == packageName
     }
 
     private fun updateStatusIndicators() {
-        // 0. Default Dialer status
-        val isDefault = isDefaultDialer()
-        if (isDefault) {
-            binding.btnSetDefaultDialer.text = "FAOL"
-            binding.btnSetDefaultDialer.isEnabled = false
-            binding.btnSetDefaultDialer.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#10B981"))
-            binding.tvDefaultDialerDesc.text = "✅ Qo'ng'iroqlarni avtomatik ko'tarishga to'liq ruxsat berilgan"
-        } else {
-            binding.btnSetDefaultDialer.text = "Tanlash"
-            binding.btnSetDefaultDialer.isEnabled = true
-            binding.tvDefaultDialerDesc.text = "Telefon avtomatik ko'tarishi uchun Standart ilova qilib tanlang"
-        }
-
-        // 1. Call Screening status
-        val isScreeningActive = isCallScreeningApp()
-        if (isScreeningActive) {
-            binding.btnCallScreening.text = getString(R.string.btn_enabled)
-            binding.btnCallScreening.isEnabled = false
-        } else {
-            binding.btnCallScreening.text = getString(R.string.btn_enable)
-            binding.btnCallScreening.isEnabled = true
-        }
-
-        // 2. Permissions status
         val allPermissionsGranted = requiredPermissions.all {
             ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
         }
@@ -196,31 +256,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun requestCallScreeningRole() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val roleManager = getSystemService(Context.ROLE_SERVICE) as? RoleManager
-            if (roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_CALL_SCREENING)) {
-                if (!roleManager.isRoleHeld(RoleManager.ROLE_CALL_SCREENING)) {
-                    val intent = roleManager.createRequestRoleIntent(RoleManager.ROLE_CALL_SCREENING)
-                    requestRoleLauncher.launch(intent)
-                    return
-                }
-            }
-        }
-        Toast.makeText(this, "Qo'ng'iroq filtri allaqachon faollashtirilgan", Toast.LENGTH_SHORT).show()
-    }
-
-    private fun isCallScreeningApp(): Boolean {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val roleManager = getSystemService(Context.ROLE_SERVICE) as? RoleManager
-            return roleManager?.isRoleHeld(RoleManager.ROLE_CALL_SCREENING) == true
-        }
-        return true
-    }
-
     override fun onDestroy() {
         testPlayer?.release()
         testPlayer = null
+        tts?.stop()
+        tts?.shutdown()
+        tts = null
         super.onDestroy()
     }
 }
