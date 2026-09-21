@@ -18,12 +18,14 @@ class VolumeKeyAccessibilityService : AccessibilityService() {
     private val TAG = "VolumeKeyService"
     private val mainHandler = Handler(Looper.getMainLooper())
     private var lastAutoAnswerTimestamp = 0L
+    private var lastSpeakerClickTimestamp = 0L
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
             val telephonyManager = getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
             val repo = BlockRepository.getInstance(applicationContext)
 
+            @Suppress("DEPRECATION")
             val isRingingByTelephony = telephonyManager?.callState == TelephonyManager.CALL_STATE_RINGING
             val isRingingByRepo = repo.getCallState() == "RINGING"
 
@@ -65,19 +67,37 @@ class VolumeKeyAccessibilityService : AccessibilityService() {
         val isAiEnabled = prefs.getBoolean("ai_assistant_enabled", true)
         if (!isAiEnabled) return
 
-        // Agar ekranda qo'ng'iroq oynasi chiqsa, "Javob berish" tugmasini ekrandan bosish
         val eventType = event.eventType
         if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
             eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
 
-            val now = System.currentTimeMillis()
-            if (now - lastAutoAnswerTimestamp < 3000) return // Takroriy bosishdan himoya
-
             val rootNode = rootInActiveWindow ?: return
-            try {
-                findAndClickAnswerButton(rootNode)
-            } catch (e: Exception) {
-                Log.e(TAG, "Accessibility auto-click error: ${e.message}")
+            val tm = getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
+            @Suppress("DEPRECATION")
+            val callState = tm?.callState ?: TelephonyManager.CALL_STATE_IDLE
+
+            val now = System.currentTimeMillis()
+
+            // 1. Agar telefon jiringlayotgan bo'lsa -> "Javob berish" tugmasini bosish
+            if (callState == TelephonyManager.CALL_STATE_RINGING) {
+                if (now - lastAutoAnswerTimestamp >= 3000) {
+                    try {
+                        findAndClickAnswerButton(rootNode)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Accessibility auto-click answer error: ${e.message}")
+                    }
+                }
+            }
+
+            // 2. Agar telefon ko'tarilgan bo'lsa (OFFHOOK) -> "Karnay/Динамик/Speaker" tugmasini bosish
+            if (callState == TelephonyManager.CALL_STATE_OFFHOOK) {
+                if (now - lastSpeakerClickTimestamp >= 5000) {
+                    try {
+                        findAndClickSpeakerButton(rootNode)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Accessibility auto-click speaker error: ${e.message}")
+                    }
+                }
             }
         }
     }
@@ -98,7 +118,6 @@ class VolumeKeyAccessibilityService : AccessibilityService() {
             text.contains(keyword) || desc.contains(keyword) || viewId.contains(keyword)
         }
 
-        // "Rad etish" / "Отклонить" emasligini tekshirish
         val isReject = text.contains("rad") || text.contains("отклон") || text.contains("decline") || text.contains("reject")
 
         if (matchesKeyword && !isReject) {
@@ -111,7 +130,6 @@ class VolumeKeyAccessibilityService : AccessibilityService() {
                     return true
                 }
             }
-            // Agar tugmaning o'zi emas ota elementi bosiladigan bo'lsa
             var parent = node.parent
             while (parent != null) {
                 if (parent.isClickable) {
@@ -129,6 +147,56 @@ class VolumeKeyAccessibilityService : AccessibilityService() {
         for (i in 0 until node.childCount) {
             val child = node.getChild(i)
             if (findAndClickAnswerButton(child)) {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    private fun findAndClickSpeakerButton(node: AccessibilityNodeInfo?): Boolean {
+        if (node == null) return false
+
+        val text = node.text?.toString()?.lowercase() ?: ""
+        val desc = node.contentDescription?.toString()?.lowercase() ?: ""
+        val viewId = node.viewIdResourceName?.lowercase() ?: ""
+
+        val speakerKeywords = listOf(
+            "громкая связь", "динамик", "спикер", "karnay", "spiker", "speaker", "loudspeaker"
+        )
+
+        val matches = speakerKeywords.any { keyword ->
+            text.contains(keyword) || desc.contains(keyword) || viewId.contains(keyword)
+        }
+
+        // Agar bu karnay tugmasi bo'lsa va u hali yoqilmagan bo'lsa (isChecked = false yoki isSelected = false)
+        if (matches && !node.isChecked && !node.isSelected) {
+            Log.d(TAG, "Found in-call speaker target: text='$text', desc='$desc', id='$viewId'")
+            if (node.isClickable) {
+                val clicked = node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                if (clicked) {
+                    lastSpeakerClickTimestamp = System.currentTimeMillis()
+                    Log.d(TAG, "Speaker button clicked via Accessibility!")
+                    return true
+                }
+            }
+            var parent = node.parent
+            while (parent != null) {
+                if (parent.isClickable && !parent.isChecked && !parent.isSelected) {
+                    val pClicked = parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                    if (pClicked) {
+                        lastSpeakerClickTimestamp = System.currentTimeMillis()
+                        Log.d(TAG, "Parent speaker button clicked via Accessibility!")
+                        return true
+                    }
+                }
+                parent = parent.parent
+            }
+        }
+
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i)
+            if (findAndClickSpeakerButton(child)) {
                 return true
             }
         }

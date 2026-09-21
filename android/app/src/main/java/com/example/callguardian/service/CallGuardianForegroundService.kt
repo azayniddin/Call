@@ -9,8 +9,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.media.AudioAttributes
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.MediaPlayer
+import android.media.audiofx.LoudnessEnhancer
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
@@ -38,6 +40,7 @@ class CallGuardianForegroundService : Service() {
     private var telephonyCallback: Any? = null
     private var legacyListener: PhoneStateListener? = null
     private var activePlayer: MediaPlayer? = null
+    private var loudnessEnhancer: LoudnessEnhancer? = null
     private val handler = Handler(Looper.getMainLooper())
 
     private var isIncomingRinging = false
@@ -111,7 +114,7 @@ class CallGuardianForegroundService : Service() {
                     isIncomingRinging = true
                     isCallConnected = false
                     Log.d(TAG, "Incoming Call ringing! Attempting auto-answer...")
-                    
+
                     // 1-urinish: 600ms dan so'ng
                     handler.postDelayed({
                         if (isIncomingRinging && !isCallConnected) {
@@ -131,10 +134,17 @@ class CallGuardianForegroundService : Service() {
                 // Faqat kiruvchi qo'ng'iroq bo'lsa va AI yoqilgan bo'lsa ishlaydi
                 if (isIncomingRinging && isAiEnabled && !isCallConnected) {
                     isCallConnected = true
-                    Log.d(TAG, "Call connected (OFFHOOK)! Starting AI speech playback...")
+                    Log.d(TAG, "Call connected (OFFHOOK)! Activating loudspeaker...")
+
+                    // Karnayni darhol yoqish
+                    setupLoudspeaker()
+
+                    // Suhbatdosh bilan aloqa to'liq o'rnatilgach (1.2s) ovozni boshlash
                     handler.postDelayed({
-                        playSpeechToCaller()
-                    }, 800)
+                        if (isCallConnected) {
+                            playSpeechToCaller()
+                        }
+                    }, 1200)
                 }
             }
             TelephonyManager.CALL_STATE_IDLE -> {
@@ -191,22 +201,67 @@ class CallGuardianForegroundService : Service() {
         }
     }
 
+    /**
+     * Ovoz narigi odamga (suhbatdoshga) yetib borishi uchun:
+     * 1) Android 12+ (Honor 400 Lite) da setCommunicationDevice orqali asosiy karnayni yoqish
+     * 2) Mikrofonni ochiq (unmute) holatda ushlab turish
+     * 3) Volume darajalarini maksimal 100% ga ko'tarish
+     */
+    private fun setupLoudspeaker() {
+        try {
+            val am = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+
+            // 1. Android 12+ (API 31+) uchun maxsus setCommunicationDevice
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                try {
+                    am.mode = AudioManager.MODE_IN_COMMUNICATION
+                    val devices = am.availableCommunicationDevices
+                    val speaker = devices.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
+                    if (speaker != null) {
+                        val success = am.setCommunicationDevice(speaker)
+                        Log.d(TAG, "setCommunicationDevice(BUILTIN_SPEAKER) success: $success")
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "setCommunicationDevice error: ${e.message}")
+                }
+            }
+
+            // 2. Standart isSpeakerphoneOn
+            try {
+                @Suppress("DEPRECATION")
+                am.isSpeakerphoneOn = true
+            } catch (ignored: Exception) {}
+
+            // 3. Mikrofon mute bo'lmasligini ta'minlash
+            try {
+                am.isMicrophoneMute = false
+            } catch (ignored: Exception) {}
+
+            // 4. Ovoz balandligini eng yuqoriga ko'tarish
+            val maxMusic = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+            am.setStreamVolume(AudioManager.STREAM_MUSIC, maxMusic, 0)
+
+            val maxVoice = am.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL)
+            am.setStreamVolume(AudioManager.STREAM_VOICE_CALL, maxVoice, 0)
+
+            Log.d(TAG, "Loudspeaker configured: musicVol=$maxMusic, voiceVol=$maxVoice")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error configuring loudspeaker: ${e.message}", e)
+        }
+    }
+
     private fun playSpeechToCaller() {
         try {
-            val am = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-            am?.mode = AudioManager.MODE_IN_CALL
-            am?.isSpeakerphoneOn = true // Suhbatdosh eshitishi uchun karnayni yoqish
-
-            // Ovoz balandligini eng yuqori darajaga qo'yish
-            val maxVol = am?.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL) ?: 7
-            am?.setStreamVolume(AudioManager.STREAM_VOICE_CALL, maxVol, 0)
+            setupLoudspeaker()
 
             activePlayer?.release()
+            loudnessEnhancer?.release()
 
             // Agar foydalanuvchi maxsus matn saqlagan bo'lsa
             val customFile = File(filesDir, "custom_ai_speech.wav")
             val player = if (customFile.exists() && customFile.length() > 0) {
-                Log.d(TAG, "Using custom synthesized speech: ${customFile.absolutePath}")
+                Log.d(TAG, "Using custom speech: ${customFile.absolutePath}")
                 MediaPlayer().apply {
                     setDataSource(applicationContext, Uri.fromFile(customFile))
                     prepare()
@@ -217,31 +272,45 @@ class CallGuardianForegroundService : Service() {
             }
 
             activePlayer = player?.apply {
+                // USAGE_MEDIA orqali asosiy pastki karnayda baland yangrashini ta'minlaymiz
                 setAudioAttributes(
                     AudioAttributes.Builder()
                         .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                        .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
-                        .setLegacyStreamType(AudioManager.STREAM_VOICE_CALL)
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setLegacyStreamType(AudioManager.STREAM_MUSIC)
                         .build()
                 )
 
+                setVolume(1.0f, 1.0f)
+
+                // LoudnessEnhancer orqali ovozni +15dB kuchaytirib beramiz
+                try {
+                    loudnessEnhancer = LoudnessEnhancer(audioSessionId).apply {
+                        setTargetGain(1500)
+                        enabled = true
+                    }
+                    Log.d(TAG, "LoudnessEnhancer (+15dB) enabled")
+                } catch (e: Exception) {
+                    Log.w(TAG, "LoudnessEnhancer: ${e.message}")
+                }
+
                 setOnCompletionListener {
-                    Log.d(TAG, "Speech playback finished! Hanging up call...")
+                    Log.d(TAG, "Speech finished! Hanging up call in 800ms...")
                     handler.postDelayed({
                         hangupCall()
-                    }, 600)
+                    }, 800)
                 }
 
                 start()
-                Log.d(TAG, "In-call AI audio playback started successfully!")
+                Log.d(TAG, "In-call loudspeaker audio playback started successfully!")
             }
 
-            // Xavfsizlik uchun 11 soniyadan so'ng majburiy o'chirish
+            // Xavfsizlik uchun: 12 soniyadan so'ng majburiy o'chirish
             handler.postDelayed({
                 if (isCallConnected) {
                     hangupCall()
                 }
-            }, 11000)
+            }, 12000)
 
         } catch (e: Exception) {
             Log.e(TAG, "Error playing audio on call: ${e.message}", e)
@@ -250,10 +319,7 @@ class CallGuardianForegroundService : Service() {
 
     private fun hangupCall() {
         try {
-            val am = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-            am?.isSpeakerphoneOn = false
-            am?.mode = AudioManager.MODE_NORMAL
-
+            cleanupAudio()
             CallManagerHelper.endCurrentCall(applicationContext)
             Log.d(TAG, "Call disconnected via CallManagerHelper")
         } catch (e: Exception) {
@@ -267,8 +333,18 @@ class CallGuardianForegroundService : Service() {
     private fun cleanupAudio() {
         try {
             val am = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                try {
+                    am?.clearCommunicationDevice()
+                } catch (ignored: Exception) {}
+            }
+            @Suppress("DEPRECATION")
             am?.isSpeakerphoneOn = false
             am?.mode = AudioManager.MODE_NORMAL
+
+            loudnessEnhancer?.release()
+            loudnessEnhancer = null
+
             activePlayer?.release()
             activePlayer = null
         } catch (ignored: Exception) {}
@@ -284,7 +360,7 @@ class CallGuardianForegroundService : Service() {
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Zayniddin AI Assistant")
-            .setContentText("🟢 Faol: Kiruvchi qo'ng'iroqlarga avtomatik javob beriladi")
+            .setContentText("🟢 Faol: Qo'ng'iroqlarga avtomatik javob beriladi")
             .setSmallIcon(R.drawable.ic_shield)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
