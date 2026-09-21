@@ -3,30 +3,23 @@ package com.example.callguardian.ui
 import android.Manifest
 import android.app.role.RoleManager
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
-import android.telecom.TelecomManager
-import android.text.InputType
-import android.widget.EditText
+import android.speech.tts.TextToSpeech
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.callguardian.R
-import com.example.callguardian.data.BlockRepository
 import com.example.callguardian.databinding.ActivityMainBinding
-import com.example.callguardian.service.VolumeKeyAccessibilityService
+import java.util.Locale
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private lateinit var binding: ActivityMainBinding
-    private lateinit var repo: BlockRepository
-    private lateinit var adapter: BlockedNumbersAdapter
+    private var tts: TextToSpeech? = null
+    private val PREFS_NAME = "call_guardian_prefs"
 
     private val requiredPermissions = buildList {
         add(Manifest.permission.READ_PHONE_STATE)
@@ -34,9 +27,8 @@ class MainActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             add(Manifest.permission.ANSWER_PHONE_CALLS)
         }
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            @Suppress("DEPRECATION")
-            add(Manifest.permission.PROCESS_OUTGOING_CALLS)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            add(Manifest.permission.READ_PHONE_NUMBERS)
         }
     }
 
@@ -55,65 +47,86 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        repo = BlockRepository.getInstance(this)
-        setupRecyclerView()
+        tts = TextToSpeech(this, this)
+        loadSettings()
         setupListeners()
-        loadBlockedNumbers()
+        updateStatusIndicators()
+    }
 
-        repo.registerListener {
-            runOnUiThread {
-                loadBlockedNumbers()
-            }
+    override fun onInit(status: Int) {
+        if (status == TextToSpeech.SUCCESS) {
+            tts?.setLanguage(Locale("uz"))
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        updateStatusIndicators()
-        loadBlockedNumbers()
-    }
+    private fun loadSettings() {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val isEnabled = prefs.getBoolean("ai_assistant_enabled", true)
+        val selectedSim = prefs.getString("selected_sim", "both") ?: "both"
 
-    private fun setupRecyclerView() {
-        adapter = BlockedNumbersAdapter(
-            onUnblockClick = { item ->
-                showUnblockConfirmDialog(item.phoneNumber)
-            }
-        )
-        binding.rvBlockedNumbers.layoutManager = LinearLayoutManager(this)
-        binding.rvBlockedNumbers.adapter = adapter
+        binding.switchAiAssistant.isChecked = isEnabled
+        updateSwitchSubtitle(isEnabled)
+
+        when (selectedSim) {
+            "sim1" -> binding.rbSim1.isChecked = true
+            "sim2" -> binding.rbSim2.isChecked = true
+            else -> binding.rbBothSim.isChecked = true
+        }
     }
 
     private fun setupListeners() {
-        binding.btnAccessibility.setOnClickListener {
-            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-            startActivity(intent)
+        // AI Assistant Switch
+        binding.switchAiAssistant.setOnCheckedChangeListener { _, isChecked ->
+            val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            prefs.edit().putBoolean("ai_assistant_enabled", isChecked).apply()
+            updateSwitchSubtitle(isChecked)
+            val msg = if (isChecked) "AI Yordamchi YOQILDI! Qo'ng'iroqlarga o'zi javob beradi." else "AI Yordamchi O'CHIRILDI."
+            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
         }
 
+        // SIM Selection
+        binding.rgSimSelection.setOnCheckedChangeListener { _, checkedId ->
+            val sim = when (checkedId) {
+                R.id.rbSim1 -> "sim1"
+                R.id.rbSim2 -> "sim2"
+                else -> "both"
+            }
+            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .putString("selected_sim", sim)
+                .apply()
+            Toast.makeText(this, "Tanlandi: $sim", Toast.LENGTH_SHORT).show()
+        }
+
+        // Test Speech
+        binding.btnTestSpeech.setOnClickListener {
+            val speechText = "Assalomu alaykum! Men Zayniddinning sun'iy intellekt yordamchisiman. Zayniddin hozir ishda, ishdan chiqib o'zlari sizga telefon qiladi. Xayr, salomat bo'ling!"
+            tts?.speak(speechText, TextToSpeech.QUEUE_FLUSH, null, "TEST_ID")
+        }
+
+        // Call Screening Button
         binding.btnCallScreening.setOnClickListener {
             requestCallScreeningRole()
         }
 
+        // Phone Permissions Button
         binding.btnPhonePermissions.setOnClickListener {
             requestPermissionsLauncher.launch(requiredPermissions.toTypedArray())
         }
+    }
 
-        binding.fabAdd.setOnClickListener {
-            showAddManualDialog()
+    private fun updateSwitchSubtitle(isEnabled: Boolean) {
+        if (isEnabled) {
+            binding.tvAiStatusSubtitle.text = "🟢 Faol: Qo'ng'iroqlarni o'zi ko'tarib javob beradi"
+            binding.tvAiStatusSubtitle.setTextColor(ContextCompat.getColor(this, R.color.status_green))
+        } else {
+            binding.tvAiStatusSubtitle.text = "⚪ O'chirilgan"
+            binding.tvAiStatusSubtitle.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
         }
     }
 
     private fun updateStatusIndicators() {
-        // 1. Accessibility Service status
-        val isAccessibilityOn = isAccessibilityServiceEnabled(this, VolumeKeyAccessibilityService::class.java)
-        if (isAccessibilityOn) {
-            binding.btnAccessibility.text = getString(R.string.btn_enabled)
-            binding.btnAccessibility.isEnabled = false
-        } else {
-            binding.btnAccessibility.text = getString(R.string.btn_enable)
-            binding.btnAccessibility.isEnabled = true
-        }
-
-        // 2. Call Screening status
+        // 1. Call Screening status
         val isScreeningActive = isCallScreeningApp()
         if (isScreeningActive) {
             binding.btnCallScreening.text = getString(R.string.btn_enabled)
@@ -123,7 +136,7 @@ class MainActivity : AppCompatActivity() {
             binding.btnCallScreening.isEnabled = true
         }
 
-        // 3. Permissions status
+        // 2. Permissions status
         val allPermissionsGranted = requiredPermissions.all {
             ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
         }
@@ -134,59 +147,6 @@ class MainActivity : AppCompatActivity() {
             binding.btnPhonePermissions.text = getString(R.string.btn_grant)
             binding.btnPhonePermissions.isEnabled = true
         }
-    }
-
-    private fun loadBlockedNumbers() {
-        val list = repo.getAllBlocked()
-        adapter.submitList(list)
-        binding.tvBlockedCount.text = "(${list.size})"
-
-        if (list.isEmpty()) {
-            binding.tvEmptyState.visibility = android.view.View.VISIBLE
-            binding.rvBlockedNumbers.visibility = android.view.View.GONE
-        } else {
-            binding.tvEmptyState.visibility = android.view.View.GONE
-            binding.rvBlockedNumbers.visibility = android.view.View.VISIBLE
-        }
-    }
-
-    private fun showAddManualDialog() {
-        val input = EditText(this).apply {
-            hint = getString(R.string.dialog_add_hint)
-            inputType = InputType.TYPE_CLASS_PHONE
-            setPadding(48, 32, 48, 32)
-        }
-
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.dialog_add_title))
-            .setView(input)
-            .setPositiveButton(getString(R.string.dialog_btn_add)) { _, _ ->
-                val number = input.text.toString().trim()
-                if (number.isNotBlank()) {
-                    val added = repo.addBlockedNumber(number, "Qo'lda kiritilgan")
-                    if (added) {
-                        Toast.makeText(this, getString(R.string.blocked_toast, number), Toast.LENGTH_SHORT).show()
-                        loadBlockedNumbers()
-                    } else {
-                        Toast.makeText(this, "Bu raqam allaqachon ro'yxatda mavjud", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            }
-            .setNegativeButton(getString(R.string.dialog_btn_cancel), null)
-            .show()
-    }
-
-    private fun showUnblockConfirmDialog(phoneNumber: String) {
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.btn_unblock))
-            .setMessage("$phoneNumber raqamini blokdan chiqarmoqchimisiz?")
-            .setPositiveButton("Ha") { _, _ ->
-                repo.removeBlockedNumber(phoneNumber)
-                Toast.makeText(this, getString(R.string.unblocked_toast, phoneNumber), Toast.LENGTH_SHORT).show()
-                loadBlockedNumbers()
-            }
-            .setNegativeButton("Yo'q", null)
-            .show()
     }
 
     private fun requestCallScreeningRole() {
@@ -211,13 +171,9 @@ class MainActivity : AppCompatActivity() {
         return true
     }
 
-    private fun isAccessibilityServiceEnabled(context: Context, service: Class<*>): Boolean {
-        val expectedComponentName = "${context.packageName}/${service.name}"
-        val enabledServices = Settings.Secure.getString(
-            context.contentResolver,
-            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-        ) ?: return false
-
-        return enabledServices.split(":").any { it.equals(expectedComponentName, ignoreCase = true) }
+    override fun onDestroy() {
+        tts?.stop()
+        tts?.shutdown()
+        super.onDestroy()
     }
 }

@@ -23,11 +23,11 @@
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:layout_marginBottom="24dp">
+                android:layout_marginBottom="20dp">
 
                 <ImageView
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
                     android:src="@drawable/ic_shield"
                     android:contentDescription="@string/app_name" />
 
@@ -40,7 +40,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/app_name"
+                        android:text="Zayniddin AI Assistant"
                         android:textColor="@color/text_primary"
                         android:textSize="22sp"
                         android:textStyle="bold" />
@@ -48,31 +48,22 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Ovoz tugmasi orqali aqlli qo'ng'iroq nazorati"
+                        android:text="Dual-SIM Avtomatik Telefon Yordamchisi"
                         android:textColor="@color/text_secondary"
                         android:textSize="13sp" />
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Status Card -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
-                android:text="@string/title_app_status"
-                android:textColor="@color/text_primary"
-                android:textSize="16sp"
-                android:textStyle="bold" />
-
+            <!-- ASOSIY AI YORDAMCHI ON/OFF KARTASI -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_card"
+                android:backgroundTint="#0F172A"
                 android:orientation="vertical"
-                android:padding="16dp"
+                android:padding="20dp"
                 android:layout_marginBottom="20dp">
 
-                <!-- Accessibility Service Item -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -88,33 +79,137 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="@string/status_accessibility_title"
-                            android:textColor="@color/text_primary"
-                            android:textSize="15sp"
+                            android:text="AI Yordamchi Xizmati"
+                            android:textColor="#FFFFFF"
+                            android:textSize="18sp"
                             android:textStyle="bold" />
 
                         <TextView
+                            android:id="@+id/tvAiStatusSubtitle"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="@string/status_accessibility_desc"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
+                            android:layout_marginTop="4dp"
+                            android:text="Qo'ng'iroqlarni o'zi ko'tarib javob beradi"
+                            android:textColor="#94A3B8"
+                            android:textSize="13sp" />
                     </LinearLayout>
 
-                    <Button
-                        android:id="@+id/btnAccessibility"
-                        style="@style/Widget.Material3.Button.TonalButton"
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/switchAiAssistant"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/btn_enable"
-                        android:textSize="12sp" />
+                        android:checked="true" />
                 </LinearLayout>
 
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
-                    android:layout_marginVertical="12dp"
-                    android:background="@color/divider" />
+                    android:layout_marginVertical="16dp"
+                    android:background="#334155" />
+
+                <!-- SIM Karta Tanlash -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Amal qiladigan SIM karta:"
+                    android:textColor="#E2E8F0"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp" />
+
+                <RadioGroup
+                    android:id="@+id/rgSimSelection"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <RadioButton
+                        android:id="@+id/rbSim1"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="SIM 1"
+                        android:textColor="#FFFFFF"
+                        android:textSize="13sp" />
+
+                    <RadioButton
+                        android:id="@+id/rbSim2"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="SIM 2"
+                        android:textColor="#FFFFFF"
+                        android:textSize="13sp" />
+
+                    <RadioButton
+                        android:id="@+id/rbBothSim"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1.2"
+                        android:checked="true"
+                        android:text="Ikkala SIM"
+                        android:textColor="#FFFFFF"
+                        android:textSize="13sp" />
+                </RadioGroup>
+
+            </LinearLayout>
+
+            <!-- AI KOTIB MATNI VA SINOV -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_card"
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:layout_marginBottom="20dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🎙️ AI Kotib Nutqi"
+                    android:textColor="@color/text_primary"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvAssistantSpeechText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_badge_active"
+                    android:padding="12dp"
+                    android:text="&quot;Assalomu alaykum! Men Zayniddinning sun'iy intellekt yordamchisiman. Zayniddin hozir ishda, ishdan chiqib o'zlari sizga telefon qiladi. Xayr, salomat bo'ling!&quot;"
+                    android:textColor="@color/status_green"
+                    android:textSize="13sp"
+                    android:lineSpacingExtra="3dp" />
+
+                <Button
+                    android:id="@+id/btnTestSpeech"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="🔊 Ovozni telefonda eshitib ko'rish"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <!-- Tizim ruxsatlari -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="Zarur Tizim Ruxsatlari"
+                android:textColor="@color/text_primary"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_card"
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:layout_marginBottom="20dp">
 
                 <!-- Call Screening Item -->
                 <LinearLayout
@@ -140,7 +235,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="@string/status_screening_desc"
+                            android:text="Avtomatik qo'ng'iroqni aniqlash"
                             android:textColor="@color/text_secondary"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -184,7 +279,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="@string/status_phone_perm_desc"
+                            android:text="SIM kartalarni boshqarish ruxsati"
                             android:textColor="@color/text_secondary"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -200,92 +295,11 @@
 
             </LinearLayout>
 
-            <!-- Auto Unblock Info Banner -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@drawable/bg_badge_active"
-                android:orientation="horizontal"
-                android:padding="12dp"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="20dp">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/auto_unblock_hint"
-                    android:textColor="@color/status_green"
-                    android:textSize="13sp"
-                    android:lineSpacingExtra="2dp" />
-            </LinearLayout>
-
-            <!-- Blocked List Section -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:layout_marginBottom="8dp">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/title_blocked_list"
-                    android:textColor="@color/text_primary"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/tvBlockedCount"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="(0)"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="14sp" />
-            </LinearLayout>
-
-            <!-- Empty State View -->
-            <TextView
-                android:id="@+id/tvEmptyState"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@drawable/bg_card"
-                android:gravity="center"
-                android:lineSpacingExtra="4dp"
-                android:padding="32dp"
-                android:text="@string/empty_blocked_list"
-                android:textColor="@color/text_secondary"
-                android:textSize="14sp"
-                android:visibility="gone"
-                tools:visibility="visible" />
-
-            <!-- Recycler View -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvBlockedNumbers"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:nestedScrollingEnabled="false" />
-
-            <!-- Bottom spacing for FAB -->
             <View
                 android:layout_width="match_parent"
-                android:layout_height="80dp" />
+                android:layout_height="30dp" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
-
-    <!-- Floating Action Button for Manual Addition -->
-    <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
-        android:id="@+id/fabAdd"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_margin="20dp"
-        android:text="@string/btn_add_manual"
-        android:textColor="@color/surface"
-        app:icon="@drawable/ic_add"
-        app:iconTint="@color/surface"
-        app:backgroundTint="@color/primary" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
