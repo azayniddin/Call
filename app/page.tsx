@@ -35,11 +35,19 @@ export default function HomePage() {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
   const [, setSaveSuccess] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     setMounted(true);
+
+    const handleBeforeInstall = (e: any) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+
     fetch('/api/assistant/config')
       .then((res) => res.json())
       .then((data) => {
@@ -51,7 +59,23 @@ export default function HomePage() {
         }
       })
       .catch((err) => console.log('Config yuklanmadi, default ishlatilmoqda:', err));
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+    };
   }, []);
+
+  const handleInstallApp = async () => {
+    if (installPrompt) {
+      installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      if (choice.outcome === 'accepted') {
+        setInstallPrompt(null);
+      }
+    } else {
+      alert("Ilovani o'rnatish uchun brauzeringiz menyusidagi uch nuqtani (⋮) bosib, 'Ilovani o'rnatish' (Install App) tugmasini tanlang.");
+    }
+  };
 
   // Sozlamalarni serverga saqlash
   const saveConfig = async (newConfig: Partial<AssistantConfig>) => {
@@ -174,6 +198,30 @@ export default function HomePage() {
         >
           <Phone size={17} />
           <span>Qo&apos;ng&apos;iroqni Sinab Ko&apos;rish</span>
+        </button>
+      </div>
+
+      {/* HAQIQIY ILOVA SIFATIDA O'RNATISH BANNERI */}
+      <div className="mb-8 p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-700/50 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4 text-white">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-600/80 border border-indigo-400/30 flex items-center justify-center flex-shrink-0">
+            <Smartphone size={24} className="text-white" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h4 className="font-bold text-sm sm:text-base">Telefoningizga Mustaqil Ilova Qilib O&apos;rnatish</h4>
+              <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full">WebAPK</span>
+            </div>
+            <p className="text-xs text-indigo-200 mt-0.5">
+              Oddiy brauzer yorlig&apos;i emas, telefoningiz sozlamalariga tushadigan to&apos;liq ilova sifatida o&apos;rnatiladi.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={handleInstallApp}
+          className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 font-bold text-sm shadow-lg shadow-emerald-500/20 transition active:scale-95 whitespace-nowrap flex items-center justify-center gap-2"
+        >
+          <span>📲 Ilovani O&apos;rnatish</span>
         </button>
       </div>
 

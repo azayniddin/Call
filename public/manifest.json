@@ -1,16 +1,40 @@
 {
+  "id": "com.zayniddin.callassistant",
   "name": "Zayniddin AI Call Assistant",
-  "short_name": "AI Assistant",
-  "description": "Zayniddin uchun sun'iy intellekt qo'ng'iroq yordamchisi",
+  "short_name": "Call Assistant",
+  "description": "Zayniddin uchun OpenAI bilan ishlaydigan professional AI telefon yordamchisi",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
+  "display_override": ["standalone", "window-controls-overlay"],
+  "orientation": "portrait",
+  "background_color": "#0f172a",
   "theme_color": "#4f46e5",
+  "categories": ["utilities", "productivity"],
   "icons": [
     {
-      "src": "/icon.png",
+      "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
