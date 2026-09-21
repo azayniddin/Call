@@ -54,6 +54,60 @@
                 </LinearLayout>
             </LinearLayout>
 
+            <!-- ENG MUHIM: STANDART TELEFON ILOVASI STATUSI -->
+            <LinearLayout
+                android:id="@+id/layoutDefaultDialerNotice"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_card"
+                android:backgroundTint="#1E1B4B"
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:layout_marginBottom="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="⚡ 1-QADAM: Qo'ng'iroqni boshqarish"
+                            android:textColor="#FBBF24"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tvDefaultDialerDesc"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="Telefon avtomatik ko'tarishi uchun Standart ilova qilib tanlang"
+                            android:textColor="#E2E8F0"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <Button
+                        android:id="@+id/btnSetDefaultDialer"
+                        style="@style/Widget.Material3.Button"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Tanlash"
+                        android:backgroundTint="#6366F1"
+                        android:textColor="#FFFFFF"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+            </LinearLayout>
+
             <!-- ASOSIY AI YORDAMCHI ON/OFF KARTASI -->
             <LinearLayout
                 android:layout_width="match_parent"

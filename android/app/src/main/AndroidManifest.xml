@@ -29,6 +29,15 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.DIAL" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.DIAL" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="tel" />
+            </intent-filter>
         </activity>
 
         <!-- AI Auto-Answer InCallService -->
@@ -39,6 +48,9 @@
             <intent-filter>
                 <action android:name="android.telecom.InCallService" />
             </intent-filter>
+            <meta-data
+                android:name="android.telecom.IN_CALL_SERVICE_UI"
+                android:value="false" />
         </service>
 
         <!-- 1. Volume Key Accessibility Service -->

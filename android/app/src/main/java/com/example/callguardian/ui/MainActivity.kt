@@ -3,22 +3,23 @@ package com.example.callguardian.ui
 import android.Manifest
 import android.app.role.RoleManager
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.MediaPlayer
 import android.os.Build
 import android.os.Bundle
-import android.speech.tts.TextToSpeech
+import android.telecom.TelecomManager
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.example.callguardian.R
 import com.example.callguardian.databinding.ActivityMainBinding
-import java.util.Locale
 
-class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
+class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
-    private var tts: TextToSpeech? = null
+    private var testPlayer: MediaPlayer? = null
     private val PREFS_NAME = "call_guardian_prefs"
 
     private val requiredPermissions = buildList {
@@ -47,16 +48,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        tts = TextToSpeech(this, this)
         loadSettings()
         setupListeners()
         updateStatusIndicators()
-    }
-
-    override fun onInit(status: Int) {
-        if (status == TextToSpeech.SUCCESS) {
-            tts?.setLanguage(Locale("uz"))
-        }
     }
 
     private fun loadSettings() {
@@ -95,13 +89,33 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 .edit()
                 .putString("selected_sim", sim)
                 .apply()
-            Toast.makeText(this, "Tanlandi: $sim", Toast.LENGTH_SHORT).show()
         }
 
-        // Test Speech
+        // Default Dialer Button
+        binding.btnSetDefaultDialer.setOnClickListener {
+            requestDefaultDialer()
+        }
+
+        // Test Speech using real OpenAI MP3
         binding.btnTestSpeech.setOnClickListener {
-            val speechText = "Assalomu alaykum! Men Zayniddinning sun'iy intellekt yordamchisiman. Zayniddin hozir ishda, ishdan chiqib o'zlari sizga telefon qiladi. Xayr, salomat bo'ling!"
-            tts?.speak(speechText, TextToSpeech.QUEUE_FLUSH, null, "TEST_ID")
+            if (testPlayer?.isPlaying == true) {
+                testPlayer?.stop()
+                testPlayer?.release()
+                testPlayer = null
+                binding.btnTestSpeech.text = "🔊 Ovozni telefonda eshitib ko'rish"
+            } else {
+                try {
+                    testPlayer?.release()
+                    testPlayer = MediaPlayer.create(this, R.raw.ai_speech)
+                    testPlayer?.setOnCompletionListener {
+                        binding.btnTestSpeech.text = "🔊 Ovozni telefonda eshitib ko'rish"
+                    }
+                    testPlayer?.start()
+                    binding.btnTestSpeech.text = "⏹️ Ovoz yangramoqda (To'xtatish)"
+                } catch (e: Exception) {
+                    Toast.makeText(this, "Audio xatosi: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
 
         // Call Screening Button
@@ -125,7 +139,40 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
     }
 
+    private fun requestDefaultDialer() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val roleManager = getSystemService(Context.ROLE_SERVICE) as? RoleManager
+            if (roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_DIALER)) {
+                val intent = roleManager.createRequestRoleIntent(RoleManager.ROLE_DIALER)
+                startActivity(intent)
+                return
+            }
+        }
+        val intent = Intent(TelecomManager.ACTION_CHANGE_DEFAULT_DIALER).apply {
+            putExtra(TelecomManager.EXTRA_CHANGE_DEFAULT_DIALER_PACKAGE_NAME, packageName)
+        }
+        startActivity(intent)
+    }
+
+    private fun isDefaultDialer(): Boolean {
+        val telecomManager = getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
+        return telecomManager?.defaultDialerPackage == packageName
+    }
+
     private fun updateStatusIndicators() {
+        // 0. Default Dialer status
+        val isDefault = isDefaultDialer()
+        if (isDefault) {
+            binding.btnSetDefaultDialer.text = "FAOL"
+            binding.btnSetDefaultDialer.isEnabled = false
+            binding.btnSetDefaultDialer.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#10B981"))
+            binding.tvDefaultDialerDesc.text = "✅ Qo'ng'iroqlarni avtomatik ko'tarishga to'liq ruxsat berilgan"
+        } else {
+            binding.btnSetDefaultDialer.text = "Tanlash"
+            binding.btnSetDefaultDialer.isEnabled = true
+            binding.tvDefaultDialerDesc.text = "Telefon avtomatik ko'tarishi uchun Standart ilova qilib tanlang"
+        }
+
         // 1. Call Screening status
         val isScreeningActive = isCallScreeningApp()
         if (isScreeningActive) {
@@ -172,8 +219,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     override fun onDestroy() {
-        tts?.stop()
-        tts?.shutdown()
+        testPlayer?.release()
+        testPlayer = null
         super.onDestroy()
     }
 }
