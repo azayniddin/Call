@@ -24,5 +24,5 @@ export const DEFAULT_CONFIG: AssistantConfig = {
   customMessage: 'men ishdaman ishdan chiqib qongiroq qilaman',
   formattedSpeech: 'Assalomu alaykum! Men Zayniddinning sun\'iy intellekt yordamchisiman. Zayniddin hozir ishda, ishdan chiqib o\'zlari sizga qo\'ng\'iroq qiladilar. Xayr, salomat bo\'ling!',
   voice: 'nova',
-  updatedAt: new Date().toISOString(),
+  updatedAt: '2026-09-21T10:00:00.000Z',
 };

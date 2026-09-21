@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Phone, PhoneCall, PhoneOff, Mic, Sparkles, Volume2, ShieldCheck, X } from 'lucide-react';
+import { PhoneCall, PhoneOff, Mic, Sparkles, Volume2, X } from 'lucide-react';
 
 interface CallSimulatorProps {
   isOpen: boolean;
@@ -22,7 +22,6 @@ export default function CallSimulator({
   sim1Name,
   sim2Name,
 }: CallSimulatorProps) {
-  // Call stages: 'ringing' -> 'answering' -> 'speaking' -> 'ended'
   const [callState, setCallState] = useState<'ringing' | 'connected' | 'ended'>('ringing');
   const [callSeconds, setCallSeconds] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -39,42 +38,50 @@ export default function CallSimulator({
       setCallState('ringing');
       setCallSeconds(0);
       if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
+        try {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+        } catch (e) {}
       }
       return;
     }
 
-    // 1. Qo'ng'iroq keladi: 1.8 soniyadan keyin avtomatik ko'tariladi
     setCallState('ringing');
     setCallSeconds(0);
 
     const answerTimer = setTimeout(() => {
       setCallState('connected');
 
-      // 2. Audio o'ynatish
-      if (audioBase64) {
-        const audio = new Audio(audioBase64);
-        audioRef.current = audio;
-        audio.play().catch((err) => console.log('Audio autoplay blocked:', err));
+      if (typeof window !== 'undefined') {
+        if (audioBase64) {
+          try {
+            const audio = new Audio(audioBase64);
+            audioRef.current = audio;
+            audio.play().catch((err) => console.log('Audio autoplay:', err));
 
-        audio.onended = () => {
-          setTimeout(() => {
-            setCallState('ended');
-          }, 800);
-        };
-      } else {
-        // Fallback Web Speech API agar OpenAI audio bo'lmasa
-        if ('speechSynthesis' in window) {
-          const utterance = new SpeechSynthesisUtterance(speechText);
-          utterance.lang = 'uz-UZ';
-          utterance.rate = 0.95;
-          utterance.onend = () => {
-            setTimeout(() => setCallState('ended'), 800);
-          };
-          window.speechSynthesis.speak(utterance);
+            audio.onended = () => {
+              setTimeout(() => {
+                setCallState('ended');
+              }, 800);
+            };
+          } catch (e) {
+            console.error('Audio yaratishda xato:', e);
+            setTimeout(() => setCallState('ended'), 3000);
+          }
+        } else if ('speechSynthesis' in window) {
+          try {
+            const utterance = new SpeechSynthesisUtterance(speechText);
+            utterance.lang = 'uz-UZ';
+            utterance.rate = 0.95;
+            utterance.onend = () => {
+              setTimeout(() => setCallState('ended'), 800);
+            };
+            window.speechSynthesis.speak(utterance);
+          } catch (e) {
+            setTimeout(() => setCallState('ended'), 3000);
+          }
         } else {
-          setTimeout(() => setCallState('ended'), 6000);
+          setTimeout(() => setCallState('ended'), 4000);
         }
       }
     }, 1800);
@@ -82,15 +89,18 @@ export default function CallSimulator({
     return () => {
       clearTimeout(answerTimer);
       if (audioRef.current) {
-        audioRef.current.pause();
+        try {
+          audioRef.current.pause();
+        } catch (e) {}
       }
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        try {
+          window.speechSynthesis.cancel();
+        } catch (e) {}
       }
     };
   }, [isOpen, audioBase64, speechText]);
 
-  // Qo'ng'iroq vaqti hisoblagichi
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (callState === 'connected') {
@@ -112,7 +122,7 @@ export default function CallSimulator({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
       <div className="relative w-full max-w-sm rounded-[42px] p-6 shadow-2xl border-4 border-slate-700 bg-slate-900 text-white overflow-hidden flex flex-col justify-between min-h-[580px]">
         {/* Yuqori panel va Close */}
         <div className="flex items-center justify-between">

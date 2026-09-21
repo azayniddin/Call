@@ -4,7 +4,6 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Zayniddin AI Call Assistant — Aqlli Telefon Yordamchisi',
   description: 'Zayniddin uchun 2 ta SIM karta qo\'llab-quvvatlovchi, OpenAI bilan ishlaydigan avtomatik qo\'ng\'iroq yordamchisi',
-  manifest: '/manifest.json',
 };
 
 export const viewport: Viewport = {

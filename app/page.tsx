@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Phone,
   Power,
@@ -11,12 +11,10 @@ import {
   Pause,
   RefreshCw,
   CheckCircle2,
-  Sliders,
   ShieldCheck,
   Send,
   Radio,
   FileAudio,
-  UserCheck,
 } from 'lucide-react';
 import CallSimulator from '@/components/CallSimulator';
 import { AssistantConfig, DEFAULT_CONFIG } from '@/lib/openai';
@@ -30,22 +28,26 @@ const QUICK_PRESETS = [
 ];
 
 export default function HomePage() {
+  const [mounted, setMounted] = useState(false);
   const [config, setConfig] = useState<AssistantConfig>(DEFAULT_CONFIG);
   const [inputText, setInputText] = useState(DEFAULT_CONFIG.customMessage);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-  const [audioObj, setAudioObj] = useState<HTMLAudioElement | null>(null);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [, setSaveSuccess] = useState(false);
 
-  // Initial config yuklash
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
   useEffect(() => {
+    setMounted(true);
     fetch('/api/assistant/config')
       .then((res) => res.json())
       .then((data) => {
-        if (data) {
-          setConfig(data);
-          setInputText(data.customMessage || DEFAULT_CONFIG.customMessage);
+        if (data && typeof data === 'object') {
+          setConfig((prev) => ({ ...prev, ...data }));
+          if (data.customMessage) {
+            setInputText(data.customMessage);
+          }
         }
       })
       .catch((err) => console.log('Config yuklanmadi, default ishlatilmoqda:', err));
@@ -90,13 +92,11 @@ export default function HomePage() {
           audioBase64: data.audioBase64,
         });
 
-        // Tayyorlangan audioni avtomatik sozlash
-        if (audioObj) {
-          audioObj.pause();
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current = null;
         }
-        const newAudio = new Audio(data.audioBase64);
-        newAudio.onended = () => setIsPlayingAudio(false);
-        setAudioObj(newAudio);
+        setIsPlayingAudio(false);
       } else {
         alert(data.error || 'Generatsiya xatosi');
       }
@@ -115,20 +115,34 @@ export default function HomePage() {
     }
 
     if (isPlayingAudio) {
-      audioObj?.pause();
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
       setIsPlayingAudio(false);
     } else {
-      if (!audioObj) {
+      if (!audioRef.current || audioRef.current.src !== config.audioBase64) {
         const audio = new Audio(config.audioBase64);
         audio.onended = () => setIsPlayingAudio(false);
-        setAudioObj(audio);
-        audio.play();
-      } else {
-        audioObj.play();
+        audioRef.current = audio;
       }
-      setIsPlayingAudio(true);
+      audioRef.current
+        .play()
+        .then(() => setIsPlayingAudio(true))
+        .catch((e) => console.log('Audio ijrosida to\'siq:', e));
     }
   };
+
+  // Hydration mismatch oldini olish uchun
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 text-white">
+        <div className="w-12 h-12 rounded-2xl bg-indigo-600 animate-pulse flex items-center justify-center mb-4">
+          <Sparkles size={24} className="text-white" />
+        </div>
+        <p className="text-sm font-medium text-slate-300">Zayniddin AI Call Assistant yuklanmoqda...</p>
+      </div>
+    );
+  }
 
   return (
     <main className="min-h-screen py-8 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
